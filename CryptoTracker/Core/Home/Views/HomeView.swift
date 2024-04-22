@@ -11,17 +11,26 @@ struct HomeView: View {
     
   
     @EnvironmentObject private var vm: HomeVM
-    
-    @State private var showPortfolio: Bool = true
+    @State private var showPortfolio: Bool = true //animate to the right
+    @State private var showPortfolioView: Bool = false // new sheet
     
     var body: some View {
         ZStack{
             //background
-            Color.theme.background.ignoresSafeArea()
+            Color.theme.background
+                .ignoresSafeArea()
+                .sheet(isPresented: $showPortfolioView, content: {
+                    PortfolioView()
+                        .environmentObject(vm)
+                })
             
             //content
             VStack{
                 homeHeader
+                
+                HomeStatsView(showPortfolio: $showPortfolio)
+                
+                SearchBarView(searchText: $vm.searchText)
                 
                 columnTitles
                 
@@ -56,6 +65,11 @@ extension HomeView {
         HStack{
             CircleButtonView(iconName: showPortfolio ? "plus" : "info")
                 .animation(.none, value: UUID())
+                .onTapGesture {
+                    if showPortfolio {
+                        showPortfolioView.toggle()
+                    }
+                }
                 .background(
                     CircleButtonAnimationView(animate: $showPortfolio)
                 )
@@ -74,7 +88,6 @@ extension HomeView {
                 .rotationEffect(Angle(degrees: showPortfolio ? 180 : 0))
                 .onTapGesture {
                     withAnimation(.spring()){
-                        print(showPortfolio)
                         showPortfolio.toggle()
                     }
                 }
@@ -86,7 +99,7 @@ extension HomeView {
     private var allCoinsList: some View{
         List {
             ForEach(vm.allCoins) { coin in
-                CoinRowView(coin: coin, showHoldingsColumn: true)
+                CoinRowView(coin: coin, showHoldingsColumn: false)
                     .listRowInsets(.init(top: 10, leading: 5, bottom: 10, trailing: 5))
                 
             }
@@ -98,7 +111,7 @@ extension HomeView {
     private var portfolioCoinsList: some View{
         List {
             ForEach(vm.portfolioCoins) { coin in
-                CoinRowView(coin: coin, showHoldingsColumn: false)
+                CoinRowView(coin: coin, showHoldingsColumn: true)
                     .listRowInsets(.init(top: 10, leading: 5, bottom: 10, trailing: 5))
                 
             }
@@ -117,6 +130,15 @@ extension HomeView {
             
             Text("Price")
                 .frame(width: UIScreen.main.bounds.width / 3.5, alignment: .trailing)
+            Button(action: {
+                withAnimation(.linear(duration: 2.0))
+                {
+                    vm.reloadData()
+                }
+            }, label: {
+                Image(systemName: "goforward")
+            })
+            .rotationEffect(Angle(degrees: vm.isLoading ? 360 : 0), anchor: .center)
         }
         .font(.caption)
         .foregroundStyle(Color.theme.secondaryText)
