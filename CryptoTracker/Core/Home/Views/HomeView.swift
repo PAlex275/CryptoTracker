@@ -14,6 +14,10 @@ struct HomeView: View {
     @State private var showPortfolio: Bool = true //animate to the right
     @State private var showPortfolioView: Bool = false // new sheet
     
+    @State private var selectedCoin: CoinModel? = nil
+    @State private var showDetailView: Bool = false
+    @State private var showSettingsView: Bool = false
+
     var body: some View {
         ZStack{
             //background
@@ -38,14 +42,25 @@ struct HomeView: View {
                     allCoinsList
                         .transition(.move(edge: .leading))
                 }
-                else{
+                
+                if showPortfolio {
                     portfolioCoinsList
                         .transition(.move(edge: .trailing))
                 }
                 
                 Spacer(minLength: 0)
             }
+            .sheet(isPresented: $showSettingsView, content: {
+                SettingsView()
+            })
         }
+        .background(
+            NavigationLink(
+                destination: DetailLoadingView(coin: $selectedCoin),
+                isActive: $showDetailView,
+                label: {EmptyView()}
+            )
+        )
     }
 }
 
@@ -63,12 +78,17 @@ extension HomeView {
     private var homeHeader: some View{
         
         HStack{
+            
             CircleButtonView(iconName: showPortfolio ? "plus" : "info")
                 .animation(.none, value: UUID())
                 .onTapGesture {
                     if showPortfolio {
                         showPortfolioView.toggle()
                     }
+                    else {
+                        showSettingsView.toggle()
+                    }
+                    
                 }
                 .background(
                     CircleButtonAnimationView(animate: $showPortfolio)
@@ -99,21 +119,30 @@ extension HomeView {
     private var allCoinsList: some View{
         List {
             ForEach(vm.allCoins) { coin in
-                CoinRowView(coin: coin, showHoldingsColumn: false)
-                    .listRowInsets(.init(top: 10, leading: 5, bottom: 10, trailing: 5))
-                
+                    CoinRowView(coin: coin, showHoldingsColumn: false)
+                        .listRowInsets(.init(top: 10, leading: 5, bottom: 10, trailing: 5))
+                        .onTapGesture {
+                            segue(coin: coin)
+                        }
             }
         }
         .padding(0)
         .listStyle(PlainListStyle())
     }
     
+    private func segue(coin: CoinModel){
+        selectedCoin = coin
+        showDetailView.toggle()
+    }
+    
     private var portfolioCoinsList: some View{
         List {
             ForEach(vm.portfolioCoins) { coin in
-                CoinRowView(coin: coin, showHoldingsColumn: true)
+                CoinRowView(coin: coin, showHoldingsColumn: false)
                     .listRowInsets(.init(top: 10, leading: 5, bottom: 10, trailing: 5))
-                
+                    .onTapGesture {
+                        segue(coin: coin)
+                    }
             }
         }
         .padding(0)
@@ -122,14 +151,47 @@ extension HomeView {
     
     private var columnTitles: some View{
         HStack{
-            Text("Coin")
+            HStack(spacing: 4){
+                Text("Coin")
+                Image(systemName: "chevron.down")
+                    .opacity((vm.sortOption == .rank || vm.sortOption == .rankReversed) ? 1.0 : 0.0)
+                    .rotationEffect(Angle(degrees: vm.sortOption == .rank ? 0 : 180))
+            }
+            .onTapGesture {
+                withAnimation(.default){
+                    vm.sortOption = vm.sortOption == .rank ? .rankReversed : .rank
+                }
+            }
             Spacer()
-            if showPortfolio{
-                Text("Holdings")
+            if showPortfolio == true {
+                HStack(spacing: 4){
+                    Text("Holdings")
+                        
+                    Image(systemName: "chevron.down")
+                        .opacity((vm.sortOption == .holdings || vm.sortOption == .holdingsReversed) ? 1.0 : 0.0)
+                        .rotationEffect(Angle(degrees: vm.sortOption == .holdings ? 0 : 180))
+                }
+                .onTapGesture {
+                    withAnimation(.default){
+                        vm.sortOption = vm.sortOption == .holdings ? .holdingsReversed : .holdings
+                    }
+                }
+               
             }
             
-            Text("Price")
-                .frame(width: UIScreen.main.bounds.width / 3.5, alignment: .trailing)
+            HStack(spacing: 4){
+                Text("Price")
+                    .frame(width: UIScreen.main.bounds.width / 3.5, alignment: .trailing)
+                Image(systemName: "chevron.down")
+                    .opacity((vm.sortOption == .price || vm.sortOption == .priceReversed) ? 1.0 : 0.0)
+                    .rotationEffect(Angle(degrees: vm.sortOption == .price ? 180 : 0))
+            }
+            .onTapGesture {
+                withAnimation(.default){
+                    vm.sortOption = vm.sortOption == .price ? .priceReversed : .price
+                }
+            }
+            
             Button(action: {
                 withAnimation(.linear(duration: 2.0))
                 {
